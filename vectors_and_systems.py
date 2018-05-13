@@ -1,5 +1,6 @@
 #!/usr/bin/python
 import sys
+from itertools import combinations
 
 MODULE_NAME = "landis_geometry"
 MODULE_ERROR = "Error in %s module:" % MODULE_NAME
@@ -116,6 +117,21 @@ def cross(v1,v2):
    return [i,j,k]
 def dot(v1,v2):
    return sum([x*y for x,y in zip(v1,v2)])
+def cart_colinear(*points):
+    '''Determines whether all cartesian points input are colinear'''
+    colinear = True
+    if len(points) > 2:
+        x,y,z = 0,1,2
+        for point_combo in list(combinations(points,3)):
+            x1,y1,z1 = point_combo[0]
+            x2,y2,z2 = point_combo[1]
+            x3,y3,z3 = point_combo[2]
+            #print x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2)
+            if x1*(y2*z3-z2*y3) - y1*(x2*z3 - z2*x3) + z1*(x2*y3-y2*x3) != 0:
+            #if x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2) != 0:
+                colinear = False
+                break
+    return colinear
 
 class cart_system:
     def __init__(self,*sys_ins):
@@ -139,9 +155,7 @@ class cart_system:
         if len(sys_ins) == 3:
             self.p3_in = sys_ins[2]
             if len(sys_ins[0]) == len(sys_ins[2]):
-                self.temp_slopes = [( float(round(sys_ins[2][x],20)) - float(round(sys_ins[1][x],20)) ) / ( float(round(sys_ins[1][x],20)) - float(round(sys_ins[0][x],20)) ) for x in range(len(sys_ins[0]))]
-                if False in [x == self.temp_slopes[0] for x in self.temp_slopes]:
-                    del self.temp_slopes
+                if not cart_colinear(sys_ins[0],sys_ins[1],sys_ins[2]):
                     self.temp_y = vector([c-a for c,a in zip(sys_ins[2],sys_ins[0])])
                     self.z = vector(cross(self.x,self.temp_y))
                     self.z_hat = self.z.unit()
@@ -151,10 +165,10 @@ class cart_system:
                     self.dimension = 3
                 else:
                     sys.stderr.write("%s system class was initialized with the following points that are colinear and thus cannot define a system: %s %s %s\n" % (MODULE_ERROR,sys_ins[0],sys_ins[1],sys_ins[2]))
-                    exit()
+                    #exit()
             else:
                 sys.stderr.write("%s system class was initialized with the following points that are not of the same length: %s %s %s\n" % (MODULE_ERROR,sys_ins[0],sys_ins[1],sys_ins[2]))
-                exit()
+                #exit()
         self.vecs = []
         if self.dimension >= 1:
             self.vecs.append(self.x_hat)
@@ -177,3 +191,6 @@ c = [7,8,9]
 c2 = [7,8,9.1]
 v = vector([1,2,3])
 s = cart_system(a,b,c2)
+x = [1,0,0]
+y = [0,1,0]
+z = [0,0,1]
