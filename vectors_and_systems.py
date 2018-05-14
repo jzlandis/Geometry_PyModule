@@ -52,21 +52,24 @@ class vector:
         else:
             return None
     def to_system(self,system,orig_move=True):
-        if system.dimension == 0:
-            if orig_move:
-                return vector(self.coords,system.origin,syst=system)
-            else:
-                return vector(self.coords,self.origin,syst=system)
-        elif system.dimension == 1:
-            if orig_move:
-                return vector([dot(self.coords,system.x_hat)],system.origin,syst=system)
-            else:
-                return vector([dot(self.coords,system.x_hat)],self.origin,syst=system)
-        elif system.dimension == 3:
-            if orig_move:
-                return vector([dot(self.coords,i) for i in [system.x_hat,system.y_hat,system.z_hat]],system.origin,syst=system)
-            else:
-                return vector([dot(self.coords,i) for i in [system.x_hat,system.y_hat,system.z_hat]],self.origin,syst=system)
+        if self.system == system:
+            return self
+        else:
+            if system.dimension == 0:
+                if orig_move:
+                    return vector(self.coords,system.origin,syst=system)
+                else:
+                    return vector(self.coords,self.origin,syst=system)
+            elif system.dimension == 1:
+                if orig_move:
+                    return vector([dot(self.coords,system.x_hat)],system.origin,syst=system)
+                else:
+                    return vector([dot(self.coords,system.x_hat)],self.origin,syst=system)
+            elif system.dimension == 3:
+                if orig_move:
+                    return vector([dot(self.coords,i) for i in [system.x_hat,system.y_hat,system.z_hat]],system.origin,syst=system)
+                else:
+                    return vector([dot(self.coords,i) for i in [system.x_hat,system.y_hat,system.z_hat]],self.origin,syst=system)
     def move_to_system(self,system,orig_move=True):
         self.system = system
         if system.dimension >= 0:
@@ -100,12 +103,15 @@ class vector:
                 #return vector(tempcoords,orig=self.system.origin)
                 return vector(p2cs(self.coords,self.system.vecs),orig=self.system.origin)
 
-def p2cs(p,cs_ins):
-    tempcoords = [0.0,0.0,0.0]
-    for i in range(len(cs_ins)):
-        tempcoords = [a+b for a,b in zip(tempcoords,[p[i]*cs_ins[i][x] for x in range(len(cs_ins[0]))])]
-    tempcoords += [0.0,]*(3-len(tempcoords))
-    return tempcoords
+def p2cs(p,cs):
+    tempcoords = []
+    for i in range(len(cs)):
+        try:
+            tempcoords.append([p[i]*cs[i][x] for x in range(len(cs[i]))])
+        except IndexError:
+            pass
+        #tempcoords = [a+b for a,b in zip(tempcoords,[p[i]*cs[i][x] for x in range(len(cs[0]))])]
+    return [sum([tempcoords[k][l] for k in range(len(tempcoords))]) for l in range(len(tempcoords[0]))]
 
 def cross(v1,v2):
    i1,j1,k1 = v1
@@ -185,6 +191,16 @@ class cart_system:
             return "cart_system(%s,%s,%s) dimension = %s, origin at %s" % (self.p1_in,self.p2_in,self.p3_in,self.dimension,self.origin)
         else:
             return "ERROR"
+    def __iter__(self):
+        for j in self.vecs:
+            yield j
+    def __getitem__(self):
+        return self.vecs[i]
+    def __eq__(self,other):
+        if self.__class__.__name__ == other.__class__.__name__:
+            return [list(x) for x in self.vecs] + self.origin == [list(x) for x in other.vecs] + other.origin
+        else:
+            return False
 a = [1,2,3]
 b = [4,5,6]
 c = [7,8,9]
@@ -194,3 +210,6 @@ s = cart_system(a,b,c2)
 x = [1,0,0]
 y = [0,1,0]
 z = [0,0,1]
+s2 = cart_system(x,y,z)
+v2 = vector([1],syst=s2)
+v2.to_global()
