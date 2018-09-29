@@ -9,10 +9,13 @@ def dot(v1,v2):
 	return sum([x*y for x,y in zip(v1,v2)])
 
 class cartesianBasis():
-	def __init__(self,basisUnitVectors):
+	def __init__(self,basisVectors):
 		#self.E = basisUnitVectors
-		if len(basisUnitVectors) == 3:
-			self.E = [list(cartesianVector(y).unitize()) for y in basisUnitVectors]
+		if len(basisVectors) == 2:
+			temp_e1,temp_e2 = [cartesianVector(y).unitize() for y in basisVectors]
+			temp_e3 = temp_e1.cross(temp_e2)
+			self.E = [list(temp_e1),list(temp_e2),list(temp_e3)]
+			del temp_e1,temp_e2,temp_e3
 		#check E for linear independence
 	def __repr__(self):
 		return "cartesianBasis(%s)" % ", ".join([str("e%d = " % (i+1)) + str(self.E[i]) for i in (0,1,2)])
@@ -27,11 +30,6 @@ class cartesianBasis():
 	def __getitem__(self,index):
 		return self.E[index]
 
-def cartBasisFromPoints(points):
-	'''direction from first to second point defines e1 in resulting basis, third point defines a point on the e1-e2 plane'''
-	p1,p2,p3 = [[float(x) for x in y] for y in points]
-	e1 = [y-x for x,y in zip(p1,p2)]
-
 class cartesianVector():
 	def __init__(self,components,basis=None):
 		self.comps = [float(x) for x in components]
@@ -44,15 +42,15 @@ class cartesianVector():
 				refBasis = GLOBAL_CARTESIAN_BASIS
 			else:
 				refBasis = self.basis
-			q = np.array([[cartesianVector(newBasis[j]).dot(cartesianVector(refBasis[i])) for i in (0,1,2)] for j in (0,1,2)])
+			q = np.array([[cartesianVector(newBasis[i]).dot(cartesianVector(refBasis[j])) for i in (0,1,2)] for j in (0,1,2)])
 			a = np.array([[x,] for x in list(self)])
-			return cartesianVector([sum(x) for x in a*q],basis=newBasis)
+			return cartesianVector([sum(x) for x in (a*q).T],basis=newBasis)
 	def _toGlobal(self):
 		return self._changeBasis(GLOBAL_CARTESIAN_BASIS)
 	def magnitude(self):
 		return sum([x**2 for x in self.comps])**0.5
 	def unitize(self):
-		return cartesianVector([x / self.magnitude() for x in self])
+		return cartesianVector([x / self.magnitude() for x in self],basis=self.basis)
 	def __repr__(self):
 		return "cartesianVector(%s)\n basis = %s" % (str(self.comps),str(self.basis))
 	def __iter__(self):
@@ -61,16 +59,23 @@ class cartesianVector():
 	def dot(self,other):
 		#return sum([x*y for x,y in zip(self._toGlobal(),cartesianVector(other)._toGlobal())])
 		return sum([x*y for x,y in zip(self,other._changeBasis(self.basis))])
+	def cross(self,other):
+		otherChangedBasis = other._changeBasis(self.basis)
+		return cartesianVector([self[i]*otherChangedBasis[j]-self[j]*otherChangedBasis[i] for i,j in ((1,2),(2,0),(0,1))],basis=self.basis)
 	def __add__(self,other):
 		return cartesianVector([x+y for x,y in zip(self,other._changeBasis(self.basis))],basis=self.basis)
 	def __sub__(self,other):
 		return cartesianVector([x-y for x,y in zip(self,other._changeBasis(self.basis))],basis=self.basis)
-GLOBAL_CARTESIAN_BASIS = cartesianBasis(((1,0,0),(0,1,0),(0,0,1)))
-b = cartesianVector([1,2,3])
-b1 = cartesianVector([1,2,3])
-b2 = cartesianVector([2,3,4])
-c = cartesianBasis(((0.5,3,2),(4,5,3),(1,2,3)))
-c1 = cartesianVector([1,2,3],basis=c)
-ls = dir()
-print b._toGlobal()
-print b._changeBasis(c)
+	def __getitem__(self,index):
+		return self.comps[index]
+GLOBAL_CARTESIAN_BASIS = cartesianBasis(((1.,0.,0.),(0.,1.,0.)))
+
+yAxisBasis = cartesianBasis([[0.,1.,0.],[0.,0.,1.]])
+yAxisVector = cartesianVector([1,0,0],basis=yAxisBasis)
+xAxisBasis = cartesianBasis([[1,0,0],[0,1,0]])
+xAxisVector = cartesianVector([1,0,0],basis=xAxisBasis)
+
+print "Should be a global z:"
+print xAxisVector.cross(yAxisVector)
+print "Should be zero:"
+print xAxisVector.dot(yAxisVector)
