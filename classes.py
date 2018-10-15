@@ -28,18 +28,43 @@ class cartesianBasis():
 	def __getitem__(self,index):
 		return self.E[index]
 
-class cartesianVector():
+class _vector():
 	def __init__(self,components,basis=None):
-		if isinstance(components,cartesianVector):
+		'''components should be in system (defaults to None)'''
+		if isinstance(components,self.__class__):
 			if basis == None:
 				self.comps = [float(x) for x in components._toGlobal()]
 				self.basis = None
 			else:
 				self.comps = [float(x) for x in components]
 				self.basis = deepcopy(basis)
-		else:
+		elif isinstance(components,list) or isinstance(components,tuple):
 			self.comps = [float(x) for x in components]
 			self.basis = deepcopy(basis)
+		else:
+			_x = components._toOtherType(self.__class__.__name__)
+			self.comps = _x.comps
+			self.basis = _x.basis
+	def __iter__(self):
+		for i in self.comps:
+			yield i
+	def __repr__(self):
+		return "%s(%s)\n basis = %s" % (self.__class__.__name__,str(self.comps),str(self.basis))
+	def __getitem__(self,index):
+		return self.comps[index]
+
+class sphericalVector(_vector):
+	def _toOtherType(self,t):
+		if t == "cartesianVector":
+			r,theta,phi = self.comps
+			x = r*math.cos(theta)*math.sin(phi)
+			y = r*math.sin(theta)*math.sin(phi)
+			z = r*math.cos(phi)
+			return cartesianVector([x,y,z],basis=self.basis)
+		else:
+			print "Type changer didn't catch an option, was passed %s" % str(t)
+
+class cartesianVector(_vector):
 	def _changeBasis(self,newBasis):
 		if newBasis == self.basis:
 			return self
@@ -51,17 +76,20 @@ class cartesianVector():
 			q = np.array([[cartesianVector(newBasis[i]).dot(cartesianVector(refBasis[j])) for i in (0,1,2)] for j in (0,1,2)])
 			a = np.array([[x,] for x in list(self)])
 			return cartesianVector([sum(x) for x in (a*q).T],basis=newBasis)
+	def _toOtherType(self,t):
+		if t == "sphericalVector":
+			r = sum([x**2 for x in self.comps])**0.5
+			theta = math.atan(self.comps[1]/self.comps[0])
+			phi = math.acos(self.comps[2]/r)
+			return sphericalVector([r,theta,phi],basis=self.basis)
+		else:
+			print "Type changer didn't catch an option, was passed %s" % str(t)
 	def _toGlobal(self):
 		return self._changeBasis(GLOBAL_CARTESIAN_BASIS)
 	def magnitude(self):
 		return sum([x**2 for x in self.comps])**0.5
 	def unitize(self):
 		return cartesianVector([x / self.magnitude() for x in self],basis=self.basis)
-	def __repr__(self):
-		return "cartesianVector(%s)\n basis = %s" % (str(self.comps),str(self.basis))
-	def __iter__(self):
-		for i in self.comps:
-			yield i
 	def dot(self,other):
 		#return sum([x*y for x,y in zip(self._toGlobal(),cartesianVector(other)._toGlobal())])
 		return sum([x*y for x,y in zip(self,other._changeBasis(self.basis))])
@@ -80,8 +108,7 @@ class cartesianVector():
 		return cartesianVector([x+y for x,y in zip(self,other._changeBasis(self.basis))],basis=self.basis)
 	def __sub__(self,other):
 		return cartesianVector([x-y for x,y in zip(self,other._changeBasis(self.basis))],basis=self.basis)
-	def __getitem__(self,index):
-		return self.comps[index]
+
 GLOBAL_CARTESIAN_BASIS = cartesianBasis(((1.,0.,0.),(0.,1.,0.)))
 
 class cartesianScalarField():
@@ -120,3 +147,7 @@ print(yAxisVector.normal(xAxisVector)._toGlobal())
 
 cSFex = cartesianScalarField((funca,funcb,funcc))
 print(cSFex((1,1,1)))
+
+print yAxisVector
+print sphericalVector(yAxisVector)
+print cartesianVector(sphericalVector(yAxisVector))
