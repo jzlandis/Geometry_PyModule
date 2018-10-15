@@ -52,10 +52,23 @@ class _vector():
 		return "%s(%s)\n basis = %s" % (self.__class__.__name__,str(self.comps),str(self.basis))
 	def __getitem__(self,index):
 		return self.comps[index]
+	def _changeBasis(self,newBasis):
+		if newBasis == self.basis:
+			return self
+		else:
+			if self.basis == None:
+				refBasis = GLOBAL_CARTESIAN_BASIS
+			else:
+				refBasis = self.basis
+			q = np.array([[cartesianVector(newBasis[i]).dot(cartesianVector(refBasis[j])) for i in (0,1,2)] for j in (0,1,2)])
+			a = np.array([[x,] for x in list(self._toOtherType("cartesianVector"))])
+			return cartesianVector([sum(x) for x in (a*q).T],basis=newBasis)._toOtherType(self.__class__.__name__)
 
 class sphericalVector(_vector):
 	def _toOtherType(self,t):
-		if t == "cartesianVector":
+		if t == self.__class__.__name__:
+			return self
+		elif t == "cartesianVector":
 			r,theta,phi = self.comps
 			x = r*math.cos(theta)*math.sin(phi)
 			y = r*math.sin(theta)*math.sin(phi)
@@ -77,7 +90,9 @@ class cartesianVector(_vector):
 			a = np.array([[x,] for x in list(self)])
 			return cartesianVector([sum(x) for x in (a*q).T],basis=newBasis)
 	def _toOtherType(self,t):
-		if t == "sphericalVector":
+		if t == self.__class__.__name__:
+			return self
+		elif t == "sphericalVector":
 			r = sum([x**2 for x in self.comps])**0.5
 			theta = math.atan(self.comps[1]/self.comps[0])
 			phi = math.acos(self.comps[2]/r)
@@ -150,4 +165,5 @@ print(cSFex((1,1,1)))
 
 print yAxisVector
 print sphericalVector(yAxisVector)
+print sphericalVector(yAxisVector)._changeBasis(xAxisBasis)._changeBasis(yAxisBasis)
 print cartesianVector(sphericalVector(yAxisVector))
